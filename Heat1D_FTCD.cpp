@@ -1,6 +1,7 @@
 /*
  * Sample 1D Heat diffusion solver
- *
+ * 
+ * For testing initial and boundary conditions against Matlab
  *
  */
 

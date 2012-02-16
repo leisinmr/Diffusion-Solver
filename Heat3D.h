@@ -641,3 +641,348 @@ private:
 };
 
 
+
+/*
+ * ADI (Alternating Direction Implicit) 3D Heat Diffusion Solver
+ *
+ */
+
+class HeatADI3D : public Heat3D
+{
+    typedef double** BC;
+    typedef double*** Matrix;
+public:
+
+    HeatADI3D(int _nx, int _ny, int _nz, int _l_x, int _l_y, int _l_z, 
+           double _dx, double _dy, double _dz, double _dt, double alpha) 
+        : T(NULL), Tnew(NULL), nx(_nx), ny(_ny), nz(_nz), 
+          l_x(_l_x), l_y(_l_y), l_z(_l_z), dx(_dx), dy(_dy), dz(_dz), dt(_dt),
+          out("output/HeatCN3D.csv"), ts("output/HeatCN3D_time.csv")
+    {
+        // allocate space for arrays
+        int dim = nx*ny*nz;
+        A = dmatrix(1,dim,1,dim);
+        b = dvector(1,dim);
+        x = dvector(1,dim);
+
+        xy_0 = dmatrix(1,nx,1,ny);
+        xz_0 = dmatrix(1,nx,1,nz);
+        yz_0 = dmatrix(1,ny,1,nz);
+        xy_N = dmatrix(1,nx,1,ny);
+        xz_N = dmatrix(1,nx,1,nz);
+        yz_N = dmatrix(1,ny,1,nz);
+
+        // solve for constants
+        Cx = (alpha*dt)/(2*pow(dx,2));
+        Cy = (alpha*dt)/(2*pow(dy,2));
+        Cz = (alpha*dt)/(2*pow(dz,2));
+
+        debug = false;
+    }  
+
+    ~HeatADI3D()
+    {
+        // free everything
+        free_dmatrix(xy_0,1,nx,1,ny);
+        free_dmatrix(xz_0,1,nx,1,nz);
+        free_dmatrix(yz_0,1,ny,1,nz);
+        free_dmatrix(xy_N,1,nx,1,ny);
+        free_dmatrix(xz_N,1,nx,1,nz);
+        free_dmatrix(yz_N,1,ny,1,nz);
+
+        int dim = nx*ny*nz;
+        free_dmatrix(A,1,dim,1,dim);
+        free_dvector(b,1,dim);
+        free_dvector(x,1,dim);
+    }
+
+    void setDebug(bool dbg) { debug = dbg; }
+
+    void setIC(double*** ic, long _x, long _y, long _z)
+    {
+        b = ic[1][1];
+    }
+    
+    void setDirichletBC(BC _xy_0, BC _xz_0, BC _yz_0, BC _xy_N, BC _xz_N, BC _yz_N, int xSize, int ySize, int zSize)
+    {
+        if (debug)
+            std::cout << "Settting BCs (in func)..." << std::endl;
+        
+        // set the XY plane
+        for (int i = 1; i <= xSize; ++i)
+        {
+            for (int j = 1; j <= ySize; ++j)
+            {
+                xy_0[i][j] = _xy_0[i][j];
+                xy_N[i][j] = _xy_N[i][j];
+            }
+        }
+        // set the YZ plane
+        for (int j = 1; j <= ySize; ++j)
+        {
+            for (int k = 1; k <= zSize; ++k)
+            {
+                yz_0[j][k] = _yz_0[j][k];
+                yz_N[j][k] = _yz_N[j][k];
+            }
+        }
+        // set the XZ plane
+        for (int i = 1; i <= xSize; ++i)
+        {
+            for (int k = 1; k <= zSize; ++k)
+            {
+                xz_0[i][k] = _xz_0[i][k];
+                xz_N[i][k] = _xz_N[i][k];
+            }
+        }
+    }
+
+    void setPeriodicBC(BC _xy_0, BC _xz_0, BC _yz_0, BC _xy_N, BC _xz_N, BC _yz_N, int xSize, int ySize, int zSize)
+    {
+    }
+    
+    virtual void setSource(double*** s)
+    {
+    }
+
+    void setBC(BC _xy_0, BC _xz_0, BC _yz_0, BC _xy_N, BC _xz_N, BC _yz_N, 
+            int xSize, int ySize, int zSize)
+    {
+        if (debug)
+            std::cout << "Settting BCs (in func)..." << std::endl;
+        
+        // set the XY plane
+        for (int i = 1; i <= xSize; ++i)
+        {
+            for (int j = 1; j <= ySize; ++j)
+            {
+                xy_0[i][j] = _xy_0[i][j];
+                xy_N[i][j] = _xy_N[i][j];
+            }
+        }
+        // set the YZ plane
+        for (int j = 1; j <= ySize; ++j)
+        {
+            for (int k = 1; k <= zSize; ++k)
+            {
+                yz_0[j][k] = _yz_0[j][k];
+                yz_N[j][k] = _yz_N[j][k];
+            }
+        }
+        // set the XZ plane
+        for (int i = 1; i <= xSize; ++i)
+        {
+            for (int k = 1; k <= zSize; ++k)
+            {
+                xz_0[i][k] = _xz_0[i][k];
+                xz_N[i][k] = _xz_N[i][k];
+            }
+        }
+    }
+
+    void solve(int steps)
+    {
+        // solve CN for a specified # of steps
+        for (int n = 0; n < steps; ++n)
+        {
+            // setup a timer 
+            Timer t;
+            // start it
+            t.start();
+        
+            // solve one step
+            solveStep(n);
+
+            t.stop();
+
+            ts._stream() << n << "," << t.elapsedTime() << '\n';
+
+            std::cout << (double)t.elapsedTime() << std::endl;
+        }
+    }
+
+    void solveStep(int theStep)
+    {
+        if (debug)
+            std::cout << "Solving step #"<< theStep << std::endl;
+        
+        // set the BCs
+        resetBC();
+        
+        // setup the system
+        setupLinearSystem();
+       
+        // solve
+        gauss_elim(A,b,x,nx*ny*nz);
+
+        std::cout << b[500] << std::endl;
+        
+        // Setup the next step
+        b = x;  
+
+    }
+
+private:
+    int get3DIndex(int i, int j, int k)
+    {
+        return i + nx * (j + ny * k);
+    }
+
+    void resetBC()
+    {
+        if (debug)
+            std::cout << "Resetting BCs...." << std::endl;
+
+        for (int i = 1; i <= nx; ++i)
+        {
+            for (int j = 1; j <= ny; ++j)
+            {
+                b[get3DIndex(i,j,1)] = xy_0[i][j]; 
+                b[get3DIndex(i,j,nz)] = xy_0[i][j]; 
+            }
+        }
+        // set the YZ plane
+        for (int j = 1; j <= ny; ++j)
+        {
+            for (int k = 1; k <= nz; ++k)
+            {
+                b[get3DIndex(1,j,k)] = xy_0[j][k]; 
+                b[get3DIndex(nx,j,k)] = xy_0[j][k]; 
+            }
+        }
+        // set the XZ plane
+        for (int i = 1; i <= nx; ++i)
+        {
+            for (int k = 1; k <= nz; ++k)
+            {
+                b[get3DIndex(i,1,k)] = xy_0[i][k]; 
+                b[get3DIndex(i,ny,k)] = xy_0[i][k]; 
+            }
+        }
+    }
+
+    void setupLinearSystem()
+    {
+        if (debug)
+            std::cout << "Setting up the linear system..." << std::endl;
+        int dim = nx*ny*nz; 
+        // setup the coefficients for A
+        double zTerm = Cz;
+        double yTerm = Cy;
+        double xTerm_1 = Cx;
+        double xTerm_2 = -6*Cx;
+
+        if (debug)
+        {
+            std::cout << "Statring...dim=" << dim << std::endl;
+            std::cout << "xTerm_1=" << xTerm_1 << std::endl;
+            std::cout << "xTerm_2=" << xTerm_2 << std::endl;
+            std::cout << "yTerm=" << yTerm << std::endl;
+            std::cout << "zTerm=" << zTerm << std::endl;
+        }
+        // insert all of the coefficients for A and b
+        for (int i = 1; i <= dim; ++i)
+        {
+            // every row down, shift the coefficients
+            int zMinus = i - ny*nz;
+            int zPlus = i + ny*nz;
+            int yMinus = i - ny;
+            int yPlus = i + ny;
+            int xMinus = i - 1;
+            int x = i;
+            int xPlus = i + 1;
+            double rhs = 0.0;
+
+            if (debug)
+            {
+                std::cout << "zMinus=" << zMinus << std::endl;
+                std::cout << "zPlus=" << zPlus << std::endl;
+            }
+            
+            // Set A's coeffs
+            for (int j = 1; j <= dim; ++j)
+            {
+                // only set these if we can
+                if (j == zMinus || j == zPlus)
+                {
+                    A[i][j] = zTerm;
+                    rhs += (zTerm*b[i]);
+                    printMsg(i,j,A[i][j]);
+                }
+                else if (j == yMinus || j == yPlus)
+                {
+                    A[i][j] = yTerm;
+                    rhs += (yTerm*b[i]);
+                    printMsg(i,j,A[i][j]);
+                }
+                else if (j == xMinus || j == xPlus)
+                {
+                    A[i][j] = xTerm_1;
+                    rhs += (xTerm_1*b[i]);
+                    printMsg(i,j,A[i][j]);
+                }
+                else if (j == x)
+                {
+                    A[i][j] = xTerm_2;
+                    rhs += (xTerm_2*b[i]);
+                    printMsg(i,j,A[i][j]);
+                }
+                else
+                {
+                    A[i][j] = 0.0;
+                }
+            }
+
+            // put the calc'd rhs into b 
+            b[i] = rhs;
+        }
+    }
+
+    void printMsg(int i, int j, double value)
+    {
+        if (debug)
+            std::cout << "A["<<i<<"]["<<j<<"]:"<<value<<std::endl;
+    }
+
+    
+private:
+    // previous/current timestep
+    double***   T;     
+    double***   Tnew;
+    
+    // boundary conditions (sides of a cube)
+    double**  xy_0;
+    double**  xz_0;
+    double**  yz_0;
+    double**  xy_N;
+    double**  xz_N;
+    double**  yz_N;
+
+    // storage for the linear system
+    double **A;
+    double *b;
+    double *x;
+
+    // Constants and intervals for calc
+    int nx;
+    int ny;
+    int nz;
+    int l_x;
+    int l_y;
+    int l_z;
+    double dx;
+    double dy;
+    double dz;
+    double dt;
+    double alpha;
+    double Cx;
+    double Cy;
+    double Cz;
+
+    bool debug;
+
+    FileStream out;
+    FileStream ts;
+};
+
+

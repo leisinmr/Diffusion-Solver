@@ -11,9 +11,9 @@
 int main(int argc, char** argv)
 {
     // vars for the 3D heat equation
-    int nx = 100;
-    int ny = 100;
-    int nz = 100;
+    int nx = 10;
+    int ny = 10;
+    int nz = 10;
     int l_x = 1;
     int l_y = 1;
     int l_z = 1;
@@ -22,6 +22,10 @@ int main(int argc, char** argv)
     double dy = (double)l_y/ny;
     double dz = (double)l_z/nz;
     double dt = 0.0005;
+
+    std::cout << "dx=" << dx << std::endl; 
+    std::cout << "dy=" << dy << std::endl; 
+    std::cout << "dz=" << dz << std::endl; 
 
     // create an initial condition
     double*** ic = allocate3DMatrix<double>(1,nx,1,ny,1,nz);
@@ -46,24 +50,26 @@ int main(int argc, char** argv)
     createBC(0,yz_bc,ny,nz);
 
     // initialize the solver
-    HeatFTCD3D he(nx, ny, nz, l_x, l_y, l_z,alpha, dx, dy, dz, dt);
-    std::cout << "Setting IC with nx= " << nx << " ny=" << ny << " nz=" << nz;
-    std::cout << std::endl;
-
-    std::cout << "IC[1][1][1]= " << ic[1][1][1] << std::endl;
-    std::cout << "IC[nx][ny][nz]= " << ic[1][2][1] << std::endl;
-    std::cout << "IC[nx][ny][nz]= " << ic[3][2][1] << std::endl;
-    std::cout << "IC[nx][ny][nz]= " << ic[3][3][3] << std::endl;
-    std::cout << "IC[nx][ny][nz]= " << ic[4][5][6] << std::endl;
-    std::cout << "IC[nx][ny][nz]= " << ic[13][13][13] << std::endl;
-    std::cout << "IC[nx][ny][nz]= " << ic[50][50][50] << std::endl;
-    std::cout << "IC[nx][ny][nz]= " << ic[100][100][100] << std::endl;
-
+    HeatFTCD3D he(nx, ny, nz, l_x, l_y, l_z, dx, dy, dz, dt, alpha);
+    //he.setDebug(true);
     he.setIC(ic, nx, ny, nz);
     he.setBC(xy_bc, xz_bc, yz_bc, xy_bc, xz_bc, yz_bc, nx, ny, nz);
 
     // solve
-    he.solve(10);
+    he.solve(100);
+
+    std::cout << "Solving with Crank Nicholson..." << std::endl;
+    // initialize the solver
+    HeatCN3D hecn(nx, ny, nz, l_x, l_y, l_z, dx, dy, dz, dt, alpha);
+    hecn.setDebug(true);
+    hecn.setIC(ic, nx, ny, nz);
+    hecn.setBC(xy_bc, xz_bc, yz_bc, xy_bc, xz_bc, yz_bc, nx, ny, nz);
+
+    // solve
+    hecn.solve(100);
+
+
+
 
 }
 

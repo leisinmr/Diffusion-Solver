@@ -51,9 +51,9 @@ int main(int argc, char** argv)
 
     // initialize the solver
     HeatFTCD3D he(nx, ny, nz, l_x, l_y, l_z, dx, dy, dz, dt, alpha);
-    //he.setDebug(true);
+    he.setDebug(true);
     he.setIC(ic, nx, ny, nz);
-    he.setBC(xy_bc, xz_bc, yz_bc, xy_bc, xz_bc, yz_bc, nx, ny, nz);
+    he.setDirichletBC(xy_bc, xz_bc, yz_bc, xy_bc, xz_bc, yz_bc, nx, ny, nz);
 
     // solve
     he.solve(100);
@@ -61,9 +61,9 @@ int main(int argc, char** argv)
     std::cout << "Solving with Crank Nicholson..." << std::endl;
     // initialize the solver
     HeatCN3D hecn(nx, ny, nz, l_x, l_y, l_z, dx, dy, dz, dt, alpha);
-    hecn.setDebug(true);
+    //hecn.setDebug(true);
     hecn.setIC(ic, nx, ny, nz);
-    hecn.setBC(xy_bc, xz_bc, yz_bc, xy_bc, xz_bc, yz_bc, nx, ny, nz);
+    hecn.setDirichletBC(xy_bc, xz_bc, yz_bc, xy_bc, xz_bc, yz_bc, nx, ny, nz);
 
     // solve
     hecn.solve(100);

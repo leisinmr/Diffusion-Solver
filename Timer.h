@@ -18,8 +18,8 @@ public:
     double stop()
     {
         gettimeofday(&tv2, NULL);
-        microseconds = (tv2.tv_sec - tv1.tv_sec) * 1000; // sec to ms
-        microseconds += (tv2.tv_usec - tv1.tv_usec) / 1000; // ms to us
+        microseconds = (double)(tv2.tv_sec - tv1.tv_sec) * 1000; // sec to ms
+        microseconds += (double)(tv2.tv_usec - tv1.tv_usec) / 1000; // ms to us
 
         return microseconds;
     }

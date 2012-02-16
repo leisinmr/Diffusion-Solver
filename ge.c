@@ -73,14 +73,14 @@ bool upper_triangulate(double **A, double *b, int m){
                     max = l;                /* save the index */
                 }
             }
-            if (max != (i-1) ) {            /* see if we need to swap */
-               double *t1 = A[max];         /* swap the rows */
+            /*if (max != (i-1) ) {            
+               double *t1 = A[max];        
                A[max] = A[i-1];
                A[i-1] = t1;
-               double temp = b[i-1];        /* the b values */
+               double temp = b[i-1];      
                b[i-1] = b[max];
                b[max] = temp;
-            }
+            }*/
             if (A[i][i] == 0.0)
             {
                 printf("Singular matrix\n");

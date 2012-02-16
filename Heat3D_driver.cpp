@@ -11,9 +11,9 @@
 int main(int argc, char** argv)
 {
     // vars for the 3D heat equation
-    int nx = 20;
-    int ny = 20;
-    int nz = 20;
+    int nx = 10;
+    int ny = 10;
+    int nz = 10;
     int l_x = 1;
     int l_y = 1;
     int l_z = 1;
@@ -49,7 +49,8 @@ int main(int argc, char** argv)
     createBC(0,xz_bc,nx,nz);
     createBC(0,yz_bc,ny,nz);
 
-    // initialize the solver
+    // initialize the FTCD solver
+    std::cout << "Solving with FTCD..." << std::endl;
     HeatFTCD3D he(nx, ny, nz, l_x, l_y, l_z, dx, dy, dz, dt, alpha);
     he.setDebug(true);
     he.setIC(ic, nx, ny, nz);
@@ -58,8 +59,9 @@ int main(int argc, char** argv)
     // solve
     he.solve(10);
 
-    std::cout << "Solving with Crank Nicholson..." << std::endl;
+
     // initialize the solver
+    std::cout << "Solving with Crank Nicholson..." << std::endl;
     HeatCN3D hecn(nx, ny, nz, l_x, l_y, l_z, dx, dy, dz, dt, alpha);
     //hecn.setDebug(true);
     hecn.setIC(ic, nx, ny, nz);
@@ -67,6 +69,17 @@ int main(int argc, char** argv)
 
     // solve
     hecn.solve(10);
+
+    // initialize the solver
+    std::cout << "Solving with ADI..." << std::endl;
+    HeatADI3D headi(nx, ny, nz, l_x, l_y, l_z, dx, dy, dz, dt, alpha);
+    //hecn.setDebug(true);
+    headi.setIC(ic, nx, ny, nz);
+    headi.setDirichletBC(xy_bc, xz_bc, yz_bc, xy_bc, xz_bc, yz_bc, nx, ny, nz);
+
+    // solve
+    headi.solve(10);
+
 
 
 

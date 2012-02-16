@@ -176,8 +176,6 @@ public:
             ts._stream() << n << "," << t.elapsedTime() << std::endl;
             
             std::cout << (double)t.elapsedTime() << std::endl;
-
-            // write the output for that step
         }
     }
 

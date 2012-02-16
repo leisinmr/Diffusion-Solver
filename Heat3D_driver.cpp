@@ -11,9 +11,9 @@
 int main(int argc, char** argv)
 {
     // vars for the 3D heat equation
-    int nx = 10;
-    int ny = 10;
-    int nz = 10;
+    int nx = 20;
+    int ny = 20;
+    int nz = 20;
     int l_x = 1;
     int l_y = 1;
     int l_z = 1;
@@ -56,7 +56,7 @@ int main(int argc, char** argv)
     he.setDirichletBC(xy_bc, xz_bc, yz_bc, xy_bc, xz_bc, yz_bc, nx, ny, nz);
 
     // solve
-    he.solve(100);
+    he.solve(10);
 
     std::cout << "Solving with Crank Nicholson..." << std::endl;
     // initialize the solver
@@ -66,7 +66,7 @@ int main(int argc, char** argv)
     hecn.setDirichletBC(xy_bc, xz_bc, yz_bc, xy_bc, xz_bc, yz_bc, nx, ny, nz);
 
     // solve
-    hecn.solve(100);
+    hecn.solve(10);
 
 
 
